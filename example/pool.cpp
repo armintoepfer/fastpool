@@ -2,6 +2,7 @@
 #include <fstream>
 #include <iostream>
 #include <sstream>
+#include <string>
 
 #include <FastPool.h>
 
@@ -44,7 +45,7 @@ private:
     std::chrono::time_point<std::chrono::steady_clock> tick;
 };
 
-int main(int argc, char* argv[])
+void IntPool()
 {
     enum class Type : int
     {
@@ -53,9 +54,9 @@ int main(int argc, char* argv[])
     };
 
     auto RunWithPool = [](Type t) {
-        auto Worker = [](int i) { return i + 1; };
-        std::ofstream out("out");
-        auto Consumer = [&out](int i) { out << i << "\n"; };
+        auto Worker = [](const int i) { return i + 1; };
+        std::ofstream out("int-out-" + std::to_string(static_cast<int>(t)));
+        auto Consumer = [&out](const int i) { out << i << "\n"; };
 
         std::unique_ptr<XLR::FastPoolSPMC<int, int>> fp;
         switch (t) {
@@ -79,4 +80,52 @@ int main(int argc, char* argv[])
     t.Restart();
     RunWithPool(Type::UNSORTED);
     std::cerr << "Unsorted : " << t.ElapsedTime() << std::endl;
+}
+
+void UniqueStringPool()
+{
+    enum class Type : int
+    {
+        SORTED = 0,
+        UNSORTED = 1
+    };
+    using IOType = std::unique_ptr<std::string>;
+
+    auto RunWithPool = [](Type t) {
+        auto Worker = [](const IOType& i) -> std::unique_ptr<std::string> {
+            return std::make_unique<std::string>(*i);
+        };
+        std::ofstream out("string-out-" + std::to_string(static_cast<int>(t)));
+        auto Consumer = [&out](const IOType& i) { out << *i << "\n"; };
+
+        std::unique_ptr<XLR::FastPoolSPMC<IOType, IOType>> fp;
+        switch (t) {
+            case Type::SORTED:
+                // Keep order (sorted)
+                fp = std::make_unique<XLR::FastPoolSPMCSO<IOType, IOType>>(8, Worker, Consumer);
+                break;
+            case Type::UNSORTED:
+                // Unsorted version
+                fp = std::make_unique<XLR::FastPoolSPMCUS<IOType, IOType>>(8, Worker, Consumer);
+                break;
+            default:
+                break;
+        }
+        for (int i = 0; i < 1000000; ++i) {
+            auto a = std::make_unique<std::string>("test");
+            fp->Add(std::move(a));
+        }
+    };
+    Timer t;
+    RunWithPool(Type::SORTED);
+    std::cerr << "Sorted   : " << t.ElapsedTime() << std::endl;
+    t.Restart();
+    RunWithPool(Type::UNSORTED);
+    std::cerr << "Unsorted : " << t.ElapsedTime() << std::endl;
+}
+
+int main(int argc, char* argv[])
+{
+    IntPool();
+    UniqueStringPool();
 }

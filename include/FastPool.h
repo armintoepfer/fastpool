@@ -16,7 +16,7 @@ template <typename I, typename O>
 class FastPoolSPMC
 {
 public:
-    virtual void Add(I& input) = 0;
+    virtual void Add(I input) = 0;
     virtual ~FastPoolSPMC() = default;
 
 protected:
@@ -32,7 +32,7 @@ class FastPoolSPMCUS : public FastPoolSPMC<I, O>
 {
 public:
     FastPoolSPMCUS(const size_t numThreads, const std::function<O(I&)> wrkFct,
-                   const std::function<void(O&)> cnsFct, const size_t inputQUpperBound = 100)
+                   const std::function<void(const O&)> cnsFct, const size_t inputQUpperBound = 100)
         : inputQueue({inputQUpperBound, numThreads, numThreads})
     {
         for (size_t i = 0; i < numThreads; ++i) {
@@ -81,7 +81,7 @@ public:
         this->outputThread_.join();
     }
 
-    void Add(I& input) override
+    void Add(I input) override
     {
         while (!inputQueue.try_enqueue(std::move(input))) {
             std::this_thread::sleep_for(std::chrono::nanoseconds(5));
@@ -118,7 +118,7 @@ private:
     };
 
 public:
-    FastPoolSPMCSO(const size_t numThreads, const std::function<O(const I&)> wrkFct,
+    FastPoolSPMCSO(const size_t numThreads, const std::function<O(I&)> wrkFct,
                    const std::function<void(const O&)> cnsFct, const size_t inputQUpperBound = 100)
         : inputQueue({inputQUpperBound, numThreads, numThreads})
     {
@@ -187,7 +187,7 @@ public:
         this->outputThread_.join();
     }
 
-    void Add(I& input) override
+    void Add(I input) override
     {
         typename moodycamel::BlockingConcurrentQueue<I>::producer_token_t ptok(inputQueue);
         Wrapper w(Index, std::move(input));
