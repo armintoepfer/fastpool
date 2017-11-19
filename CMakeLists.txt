@@ -37,9 +37,9 @@ target_include_directories(fastpool INTERFACE
     ${FP_IncludeDir}
     ${FP_ThirdParty}/concurrentqueue)
 IF(${CMAKE_SYSTEM_NAME} MATCHES "Linux")
-    target_link_libraries(fastpool rt)
+    target_link_libraries(fastpool INTERFACE rt)
 ENDIF()
-target_link_libraries(fastpool
+target_link_libraries(fastpool INTERFACE
     ${CMAKE_THREAD_LIBS_INIT}
     ${CMAKE_DL_LIBS}
 )
