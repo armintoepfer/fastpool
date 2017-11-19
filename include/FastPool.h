@@ -17,6 +17,7 @@ class FastPoolSPMC
 {
 public:
     virtual void Add(I& input) = 0;
+    virtual ~FastPoolSPMC() = default;
 
 protected:
     std::vector<std::thread> threads_;
