@@ -1,9 +1,9 @@
-###############################################
-# CMake build script for the THREADPOOL library
-###############################################
+#############################################
+# CMake build script for the FASFPOOL library
+#############################################
 
 cmake_policy(SET CMP0048 NEW)
-project(TP VERSION 1.0.0 LANGUAGES CXX C)
+project(FP VERSION 1.0.0 LANGUAGES CXX C)
 cmake_minimum_required(VERSION 3.2)
 
 set(ROOT_PROJECT_NAME ${PROJECT_NAME} CACHE STRING "root project name")
@@ -14,13 +14,13 @@ IF(NOT CMAKE_BUILD_TYPE)
 ENDIF(NOT CMAKE_BUILD_TYPE)
 
 # Build-time options
-option(TP_build_bin    "Build binaries." ON)
+option(FP_build_bin    "Build binaries." ON)
 
 # Main project paths
-set(TP_RootDir       ${TP_SOURCE_DIR})
-set(TP_IncludeDir    ${TP_RootDir}/include)
-set(TP_ExampleDir    ${TP_RootDir}/example)
-set(TP_ThirdParty    ${TP_RootDir}/third-party)
+set(FP_RootDir       ${FP_SOURCE_DIR})
+set(FP_IncludeDir    ${FP_RootDir}/include)
+set(FP_ExampleDir    ${FP_RootDir}/example)
+set(FP_ThirdParty    ${FP_RootDir}/third-party)
 
 # Project configuration
 set(CMAKE_MODULE_PATH ${CMAKE_CURRENT_LIST_DIR}/cmake ${CMAKE_MODULE_PATH})
@@ -32,17 +32,17 @@ endif()
 
 include(CheckCXXCompilerFlag)
 
-add_library(threadpool INTERFACE)
-target_include_directories(threadpool INTERFACE
-    ${TP_IncludeDir}
-    ${TP_ThirdParty}/concurrentqueue)
+add_library(fastpool INTERFACE)
+target_include_directories(fastpool INTERFACE
+    ${FP_IncludeDir}
+    ${FP_ThirdParty}/concurrentqueue)
 IF(${CMAKE_SYSTEM_NAME} MATCHES "Linux")
-    target_link_libraries(threadpool rt)
+    target_link_libraries(fastpool rt)
 ENDIF()
-target_link_libraries(threadpool
+target_link_libraries(fastpool
     ${CMAKE_THREAD_LIBS_INIT}
     ${CMAKE_DL_LIBS}
 )
 
 # Example
-add_subdirectory(${TP_ExampleDir})
+add_subdirectory(${FP_ExampleDir})
