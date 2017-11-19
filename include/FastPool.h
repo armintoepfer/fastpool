@@ -202,4 +202,82 @@ private:
     moodycamel::BlockingConcurrentQueue<Wrapper> inputQueue;
     moodycamel::BlockingConcurrentQueue<Wrapper> outputQueue;
 };
+
+template <typename I, typename O>
+class FastPoolStealSPMCUS : public FastPoolSPMC<I, O>
+{
+public:
+    FastPoolStealSPMCUS(const size_t numThreads, const std::function<O(I&)> wrkFct,
+                        const std::function<void(const O&)> cnsFct,
+                        const size_t inputQUpperBound = 100)
+        : numThreads_(numThreads)
+    {
+        for (size_t i = 0; i < numThreads; ++i) {
+            inputQueue.emplace_back(inputQUpperBound, numThreads, numThreads);
+        }
+        for (size_t i = 0; i < numThreads; ++i) {
+            this->threads_.emplace_back(std::thread([this, i, wrkFct]() {
+                const int myQueue = i;
+                typename moodycamel::BlockingConcurrentQueue<I>::consumer_token_t tok(
+                    inputQueue.at(myQueue));
+                bool foundLast = true;
+                while (this->keepPulling_ || (!this->keepPulling_ && foundLast)) {
+                    I input;
+                    if (this->keepPulling_) {
+                        if (inputQueue.at(myQueue).wait_dequeue_timed(input,
+                                                                      std::chrono::milliseconds(1)))
+                            outputQueue.enqueue(std::move(wrkFct(input)));
+                    } else {
+                        foundLast = inputQueue.at(myQueue).try_dequeue(input);
+                        if (foundLast) outputQueue.enqueue(std::move(wrkFct(input)));
+                    }
+                }
+            }));
+        }
+        this->outputThread_ = std::thread([this, cnsFct]() {
+            size_t currentIndex = 0;
+            bool foundLast = true;
+            while (this->keepPoppping_ || (!this->keepPoppping_ && foundLast)) {
+                O output;
+                if (this->keepPoppping_) {
+                    if (outputQueue.wait_dequeue_timed(output, std::chrono::milliseconds(1))) {
+                        cnsFct(output);
+                        ++currentIndex;
+                    }
+                } else {
+                    foundLast = outputQueue.try_dequeue(output);
+                    if (foundLast) {
+                        cnsFct(output);
+                        ++currentIndex;
+                    }
+                }
+            }
+        });
+    }
+
+    ~FastPoolStealSPMCUS()
+    {
+        this->keepPulling_ = false;
+        for (auto& t : this->threads_)
+            t.join();
+        this->keepPoppping_ = false;
+        this->outputThread_.join();
+    }
+
+    void Add(I input) override
+    {
+        if (roundRobin == numThreads_) roundRobin = 0;
+        while (!inputQueue[roundRobin++].try_enqueue(std::move(input))) {
+            if (roundRobin == numThreads_) roundRobin = 0;
+            std::this_thread::sleep_for(std::chrono::nanoseconds(5));
+        }
+    }
+
+private:
+    const size_t numThreads_;
+    size_t roundRobin = 0;
+    size_t counter = 0;
+    std::vector<moodycamel::BlockingConcurrentQueue<I>> inputQueue;
+    moodycamel::BlockingConcurrentQueue<O> outputQueue;
+};
 }  // ::Fastpool

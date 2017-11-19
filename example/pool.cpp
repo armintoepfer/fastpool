@@ -50,7 +50,8 @@ void IntPool()
     enum class Type : int
     {
         SORTED = 0,
-        UNSORTED
+        UNSORTED,
+        STEAL_UNSORTED
     };
 
     auto RunWithPool = [](Type t) {
@@ -61,12 +62,13 @@ void IntPool()
         std::unique_ptr<XLR::FastPoolSPMC<int, int>> fp;
         switch (t) {
             case Type::SORTED:
-                // Keep order (sorted)
                 fp = std::make_unique<XLR::FastPoolSPMCSO<int, int>>(8, Worker, Consumer);
                 break;
             case Type::UNSORTED:
-                // Unsorted version
                 fp = std::make_unique<XLR::FastPoolSPMCUS<int, int>>(8, Worker, Consumer);
+                break;
+            case Type::STEAL_UNSORTED:
+                fp = std::make_unique<XLR::FastPoolStealSPMCUS<int, int>>(8, Worker, Consumer);
                 break;
             default:
                 break;
@@ -76,10 +78,13 @@ void IntPool()
     };
     Timer t;
     RunWithPool(Type::SORTED);
-    std::cerr << "Sorted   : " << t.ElapsedTime() << std::endl;
+    std::cerr << "Sorted         : " << t.ElapsedTime() << std::endl;
     t.Restart();
     RunWithPool(Type::UNSORTED);
-    std::cerr << "Unsorted : " << t.ElapsedTime() << std::endl;
+    std::cerr << "Unsorted       : " << t.ElapsedTime() << std::endl;
+    t.Restart();
+    RunWithPool(Type::STEAL_UNSORTED);
+    std::cerr << "Unsorted Steal : " << t.ElapsedTime() << std::endl;
 }
 
 void UniqueStringPool()
@@ -87,7 +92,8 @@ void UniqueStringPool()
     enum class Type : int
     {
         SORTED = 0,
-        UNSORTED = 1
+        UNSORTED,
+        STEAL_UNSORTED
     };
     using IOType = std::unique_ptr<std::string>;
 
@@ -101,12 +107,14 @@ void UniqueStringPool()
         std::unique_ptr<XLR::FastPoolSPMC<IOType, IOType>> fp;
         switch (t) {
             case Type::SORTED:
-                // Keep order (sorted)
                 fp = std::make_unique<XLR::FastPoolSPMCSO<IOType, IOType>>(8, Worker, Consumer);
                 break;
             case Type::UNSORTED:
-                // Unsorted version
                 fp = std::make_unique<XLR::FastPoolSPMCUS<IOType, IOType>>(8, Worker, Consumer);
+                break;
+            case Type::STEAL_UNSORTED:
+                fp =
+                    std::make_unique<XLR::FastPoolStealSPMCUS<IOType, IOType>>(8, Worker, Consumer);
                 break;
             default:
                 break;
@@ -118,10 +126,13 @@ void UniqueStringPool()
     };
     Timer t;
     RunWithPool(Type::SORTED);
-    std::cerr << "Sorted   : " << t.ElapsedTime() << std::endl;
+    std::cerr << "Sorted         : " << t.ElapsedTime() << std::endl;
     t.Restart();
     RunWithPool(Type::UNSORTED);
-    std::cerr << "Unsorted : " << t.ElapsedTime() << std::endl;
+    std::cerr << "Unsorted       : " << t.ElapsedTime() << std::endl;
+    t.Restart();
+    RunWithPool(Type::STEAL_UNSORTED);
+    std::cerr << "Unsorted Steal : " << t.ElapsedTime() << std::endl;
 }
 
 int main(int argc, char* argv[])
