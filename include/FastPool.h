@@ -218,15 +218,26 @@ public:
         for (size_t i = 0; i < numThreads; ++i) {
             this->threads_.emplace_back(std::thread([this, i, wrkFct]() {
                 const int myQueue = i;
+                int roundRobin = i + 1;
                 typename moodycamel::BlockingConcurrentQueue<I>::consumer_token_t tok(
                     inputQueue.at(myQueue));
                 bool foundLast = true;
                 while (this->keepPulling_ || (!this->keepPulling_ && foundLast)) {
                     I input;
                     if (this->keepPulling_) {
-                        if (inputQueue.at(myQueue).wait_dequeue_timed(input,
-                                                                      std::chrono::milliseconds(1)))
+                        if (inputQueue.at(myQueue).wait_dequeue_timed(
+                                input, std::chrono::microseconds(10))) {
                             outputQueue.enqueue(std::move(wrkFct(input)));
+                        } else {
+                            for (size_t c = roundRobin; c < roundRobin + numThreads_; ++c) {
+                                if (inputQueue.at(roundRobin % numThreads_)
+                                        .wait_dequeue_timed(input, std::chrono::microseconds(10))) {
+                                    outputQueue.enqueue(std::move(wrkFct(input)));
+                                    roundRobin = c;
+                                    break;
+                                }
+                            }
+                        }
                     } else {
                         foundLast = inputQueue.at(myQueue).try_dequeue(input);
                         if (foundLast) outputQueue.enqueue(std::move(wrkFct(input)));
@@ -240,7 +251,7 @@ public:
             while (this->keepPoppping_ || (!this->keepPoppping_ && foundLast)) {
                 O output;
                 if (this->keepPoppping_) {
-                    if (outputQueue.wait_dequeue_timed(output, std::chrono::milliseconds(1))) {
+                    if (outputQueue.wait_dequeue_timed(output, std::chrono::microseconds(10))) {
                         cnsFct(output);
                         ++currentIndex;
                     }
