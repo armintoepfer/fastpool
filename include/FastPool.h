@@ -37,14 +37,15 @@ public:
     {
         for (size_t i = 0; i < numThreads; ++i) {
             this->threads_.emplace_back(std::thread([this, wrkFct]() {
+                typename moodycamel::BlockingConcurrentQueue<I>::consumer_token_t tok(inputQueue);
                 bool foundLast = true;
                 while (this->keepPulling_ || (!this->keepPulling_ && foundLast)) {
                     I input;
                     if (this->keepPulling_) {
-                        if (inputQueue.wait_dequeue_timed(input, std::chrono::milliseconds(1)))
+                        if (inputQueue.wait_dequeue_timed(tok, input, std::chrono::milliseconds(1)))
                             outputQueue.enqueue(std::move(wrkFct(input)));
                     } else {
-                        foundLast = inputQueue.try_dequeue(input);
+                        foundLast = inputQueue.try_dequeue(tok, input);
                         if (foundLast) outputQueue.enqueue(std::move(wrkFct(input)));
                     }
                 }
@@ -123,16 +124,18 @@ public:
     {
         for (size_t i = 0; i < numThreads - 1; ++i) {
             this->threads_.emplace_back(std::thread([this, wrkFct]() {
+                typename moodycamel::BlockingConcurrentQueue<I>::consumer_token_t tok(inputQueue);
                 bool foundLast = true;
                 while (this->keepPulling_ || (!this->keepPulling_ && foundLast)) {
                     Wrapper wrapper;
                     if (this->keepPulling_) {
-                        if (inputQueue.wait_dequeue_timed(wrapper, std::chrono::milliseconds(1))) {
+                        if (inputQueue.wait_dequeue_timed(tok, wrapper,
+                                                          std::chrono::milliseconds(1))) {
                             wrapper.Output = wrkFct(wrapper.Input);
                             outputQueue.enqueue(std::move(wrapper));
                         }
                     } else {
-                        foundLast = inputQueue.try_dequeue(wrapper);
+                        foundLast = inputQueue.try_dequeue(tok, wrapper);
                         if (foundLast) {
                             wrapper.Output = wrkFct(wrapper.Input);
                             outputQueue.enqueue(std::move(wrapper));
@@ -186,9 +189,10 @@ public:
 
     void Add(I& input) override
     {
+        typename moodycamel::BlockingConcurrentQueue<I>::producer_token_t ptok(inputQueue);
         Wrapper w(Index, std::move(input));
         ++Index;
-        while (!inputQueue.try_enqueue(std::move(w))) {
+        while (!inputQueue.try_enqueue(ptok, std::move(w))) {
             std::this_thread::sleep_for(std::chrono::nanoseconds(5));
         }
     }
