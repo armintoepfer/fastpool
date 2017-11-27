@@ -45,4 +45,6 @@ target_link_libraries(fastpool INTERFACE
 )
 
 # Example
-add_subdirectory(${FP_ExampleDir})
+if (FP_build_bin)
+    add_subdirectory(${FP_ExampleDir})
+endif()
