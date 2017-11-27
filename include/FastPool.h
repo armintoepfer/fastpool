@@ -169,10 +169,10 @@ public:
                 Wrapper wrapper;
                 if (this->keepPoppping_) {
                     if (outputQueue.wait_dequeue_timed(wrapper, std::chrono::milliseconds(1)))
-                        CheckQueue(wrapper);
+                        CheckQueue(std::move(wrapper));
                 } else {
                     foundLast = outputQueue.try_dequeue(wrapper);
-                    if (foundLast) CheckQueue(wrapper);
+                    if (foundLast) CheckQueue(std::move(wrapper));
                 }
             }
         });
@@ -291,4 +291,4 @@ private:
     std::vector<moodycamel::BlockingConcurrentQueue<I>> inputQueue;
     moodycamel::BlockingConcurrentQueue<O> outputQueue;
 };
-}  // ::Fastpool
+}  // namespace XLR

@@ -55,9 +55,9 @@ void IntPool()
     };
 
     auto RunWithPool = [](Type t) {
-        auto Worker = [](const int i) { return i + 1; };
+        auto Worker = [](const int& i) { return i + 1; };
         std::ofstream out("int-out-" + std::to_string(static_cast<int>(t)));
-        auto Consumer = [&out](const int i) { out << i << "\n"; };
+        auto Consumer = [&out](const int& i) { out << i << "\n"; };
 
         std::unique_ptr<XLR::FastPoolSPMC<int, int>> fp;
         switch (t) {
@@ -96,13 +96,16 @@ void UniqueStringPool()
         STEAL_UNSORTED
     };
     using IOType = std::unique_ptr<std::string>;
+    // using IOType = std::string;
 
     auto RunWithPool = [](Type t) {
-        auto Worker = [](const IOType& i) -> std::unique_ptr<std::string> {
+        auto Worker = [](const IOType& i) {
             return std::make_unique<std::string>(*i);
+            // return i;
         };
         std::ofstream out("string-out-" + std::to_string(static_cast<int>(t)));
-        auto Consumer = [&out](const IOType& i) { out << *i << "\n"; };
+        const auto Consumer = [&out](const IOType& i) -> void { out << *i << "\n"; };
+        // const auto Consumer = [&out](const IOType& i) -> void { out << i << "\n"; };
 
         std::unique_ptr<XLR::FastPoolSPMC<IOType, IOType>> fp;
         switch (t) {
@@ -121,6 +124,7 @@ void UniqueStringPool()
         }
         for (int i = 0; i < 1000000; ++i) {
             auto a = std::make_unique<std::string>("test");
+            // std::string a = "test";
             fp->Add(std::move(a));
         }
     };
