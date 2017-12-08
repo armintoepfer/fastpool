@@ -5,6 +5,7 @@
 #include <string>
 
 #include <FastPool.h>
+#include <OneWayPool.h>
 
 class Timer
 {
@@ -139,8 +140,39 @@ void UniqueStringPool()
     std::cerr << "Unsorted Steal : " << t.ElapsedTime() << std::endl;
 }
 
+void OwpPool()
+{
+    using IType = std::shared_ptr<std::string>;
+    auto Worker = [](IType& i) {
+        std::string tmp = "done-" + *i;
+        *i = tmp;
+    };
+
+    std::vector<IType> vec;
+    for (int i = 0; i < 1000000; ++i)
+        vec.emplace_back(std::make_shared<std::string>(std::to_string(i)));
+
+    Timer t;
+    {
+        XLR::OneWayPool<IType> owp(8, Worker);
+        for (const auto& v : vec)
+            owp.Add(v);
+    }
+
+    bool pass = true;
+    for (const auto& v : vec) {
+        if (v->substr(0, 4) != "done") {
+            pass = false;
+            std::cerr << *v << std::endl;
+            break;
+        }
+    }
+    std::cerr << "One Way (" << pass << ")   : " << t.ElapsedTime() << std::endl;
+}
+
 int main(int argc, char* argv[])
 {
-    IntPool();
-    UniqueStringPool();
+    // IntPool();
+    // UniqueStringPool();
+    OwpPool();
 }
